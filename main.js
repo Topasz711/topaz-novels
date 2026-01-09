@@ -118,6 +118,9 @@ async function loadNovelDetail(id) {
         const response = await fetch(`novels/${id}.json`);
         const novel = await response.json();
         
+        // Ensure ID is preserved from the argument since it might be missing in the JSON file
+        novel.id = id;
+
         state.currentNovel = novel;
         state.view = 'detail';
         filterContainer.classList.add('hidden');
@@ -187,6 +190,7 @@ async function loadNovelDetail(id) {
 
     } catch (error) {
         console.error("Error loading novel:", error);
+        appContent.innerHTML = `<div class="text-center p-10 text-red-400">Error loading novel. <br><button onclick="renderHome()" class="mt-4 px-4 py-2 bg-white/10 rounded hover:bg-white/20">Back to Home</button></div>`;
     }
 }
 
