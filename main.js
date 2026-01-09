@@ -50,13 +50,12 @@ filterBtns.forEach(btn => {
 // --- Rendering Functions ---
 
 // 1. Render Home (Grid)
-// แก้เป็น async function เพื่อรองรับการดึงข้อมูล Real-time
-async function renderHome() {
+function renderHome() {
     filterContainer.classList.remove('hidden');
     
     let displayNovels = [...state.novels];
     
-    // เรียงลำดับตามข้อมูล JSON ไปก่อน (เพราะข้อมูล Real-time ยังมาไม่ถึง)
+    // เรียงลำดับตามข้อมูล JSON ไปก่อน
     if (state.sortBy === 'popular') {
         displayNovels.sort((a, b) => b.viewCount - a.viewCount);
     } else {
@@ -66,25 +65,8 @@ async function renderHome() {
     // เริ่มสร้าง Grid
     let html = `<div class="novel-grid">`;
     
-    // วนลูปสร้างการ์ดนิยายแบบ Asynchronous (รอข้อมูล)
-    const novelPromises = displayNovels.map(async (novel) => {
-        // ID สำหรับดึงยอดวิวหน้าปก
-        const counterID = `topaz_novel_${novel.id}_main`;
-        let realViewCount = 0; // ค่าเริ่มต้น
-
-        try {
-            // ยิงไปถาม Server ว่ายอดวิวเท่าไหร่ (ใช้ /info/ เพื่อดูเฉยๆ ไม่นับเพิ่ม)
-            // หมายเหตุ: ถ้ายังไม่เคยมีคนเข้าดู Server จะหาไม่เจอ เราจะใช้ค่า 0
-            const res = await fetch(`https://api.countapi.xyz/info/topaz-novels-test/${counterID}`);
-            if (res.ok) {
-                const data = await res.json();
-                realViewCount = data.value;
-            }
-        } catch (e) {
-            console.log(`Failed to fetch count for ${novel.id}`);
-        }
-
-        // ส่ง HTML ของการ์ดใบนี้กลับไป (พร้อมยอดวิวที่ดึงมาได้)
+    // สร้าง HTML ทันทีโดยไม่ต้องรอ fetch
+    html += displayNovels.map(novel => {
         return `
         <div class="glass-card flex flex-col h-full group" onclick="loadNovelDetail('${novel.id}')">
             <div class="h-48 w-full overflow-hidden relative">
@@ -96,7 +78,7 @@ async function renderHome() {
                 <h3 class="text-lg font-bold text-white mb-1 group-hover:text-medical transition">${novel.title}</h3>
                 <div class="flex justify-between items-center text-xs text-white/40 mb-3 font-mono">
                     <span><i class="fa-solid fa-pen-nib mr-1"></i> ${novel.author}</span>
-                    <span><i class="fa-solid fa-eye mr-1"></i> ${realViewCount.toLocaleString()}</span>
+                    <span><i class="fa-solid fa-eye mr-1"></i> <span id="view-count-${novel.id}">...</span></span>
                 </div>
                 <div class="mt-auto pt-3 border-t border-white/5 flex justify-between items-center">
                     <span class="text-xs text-white/50">${novel.totalChapters} Episodes</span>
@@ -105,14 +87,27 @@ async function renderHome() {
             </div>
         </div>
         `;
-    });
-
-    // รอให้ทุกการ์ดดึงข้อมูลเสร็จครบหมด แล้วค่อยเอามาต่อกันเป็น HTML
-    const cardsHtml = await Promise.all(novelPromises);
-    html += cardsHtml.join('');
+    }).join('');
     
     html += `</div>`;
     appContent.innerHTML = html;
+
+    // Fetch ยอดวิวแบบ Background Process
+    displayNovels.forEach(async (novel) => {
+        const counterID = `topaz_novel_${novel.id}_main`;
+        try {
+            const res = await fetch(`https://api.countapi.xyz/info/topaz-novels-test/${counterID}`);
+            if (res.ok) {
+                const data = await res.json();
+                const el = document.getElementById(`view-count-${novel.id}`);
+                if (el) el.innerText = data.value.toLocaleString();
+            }
+        } catch (e) {
+            // ถ้าโหลดไม่ได้ ให้แสดง 0 หรือค่าเดิม
+            const el = document.getElementById(`view-count-${novel.id}`);
+            if (el && el.innerText === '...') el.innerText = '0';
+        }
+    });
 }
 
 // 2. Render Novel Detail
@@ -123,26 +118,6 @@ async function loadNovelDetail(id) {
         const response = await fetch(`novels/${id}.json`);
         const novel = await response.json();
         
-        // --- ส่วนที่แก้: ดึงยอดวิวหน้าปก ---
-        const counterID = `topaz_novel_${novel.id}_main`; 
-        let realViewCount = 0; // ตั้งต้นที่ 0 ไปเลย จะได้รู้ว่าโหลดจริง
-
-        try {
-            // ใช้ /info/ เพื่อเช็คค่านับโดยไม่เพิ่มยอด
-            // ถ้าคีย์ยังไม่เกิด (ไม่เคยมีคนเข้า) มันจะ Error เราก็ปล่อยเป็น 0
-            const countRes = await fetch(`https://api.countapi.xyz/info/topaz-novels-test/${counterID}`);
-            if (countRes.ok) {
-                const countData = await countRes.json();
-                realViewCount = countData.value || 0;
-            } else {
-                // ถ้าหาไม่เจอ แปลว่ายังไม่มีใครเปิด ให้ลอง Create หรือ Hit ครั้งแรก
-                // ในที่นี้เราจะปล่อยเป็น 0 ก่อน พอมีคนกดอ่าน (Reader) หรือเราสั่ง Hit มันจะขึ้นเอง
-            }
-        } catch (e) {
-            console.log("Counter lookup failed, defaulting to 0");
-        }
-        // --------------------------------
-
         state.currentNovel = novel;
         state.view = 'detail';
         filterContainer.classList.add('hidden');
@@ -154,7 +129,7 @@ async function loadNovelDetail(id) {
                         <img src="${novel.cover}" class="w-full rounded-lg shadow-2xl">
                     </div>
                     <div class="mt-4 text-center">
-                        <div class="text-3xl font-bold text-medical font-mono mb-1">${realViewCount.toLocaleString()}</div>
+                        <div id="detail-view-count" class="text-3xl font-bold text-medical font-mono mb-1">...</div>
                         <div class="text-xs text-white/40 uppercase tracking-widest">Total Reads</div>
                     </div>
                 </div>
@@ -195,6 +170,21 @@ async function loadNovelDetail(id) {
         appContent.innerHTML = html;
         window.scrollTo(0, 0);
 
+        // Fetch ยอดวิวแบบ Background
+        const counterID = `topaz_novel_${novel.id}_main`;
+        try {
+            const countRes = await fetch(`https://api.countapi.xyz/info/topaz-novels-test/${counterID}`);
+            if (countRes.ok) {
+                const countData = await countRes.json();
+                const el = document.getElementById('detail-view-count');
+                if (el) el.innerText = (countData.value || 0).toLocaleString();
+            }
+        } catch (e) {
+            console.log("Counter lookup failed");
+            const el = document.getElementById('detail-view-count');
+            if (el) el.innerText = '0';
+        }
+
     } catch (error) {
         console.error("Error loading novel:", error);
     }
@@ -207,28 +197,13 @@ async function loadReader(chapterIndex) {
     state.currentChapter = chapterIndex;
     state.view = 'reader';
 
-    // แก้ตรงนี้: ใช้ chapter_number แทน index ค่ะ
-    const counterID = `topaz_novel_${novel.id}_chap_${chapter.chapter_number}`;
-    let realChapterViews = 0;
-
-    try {
-        const res = await fetch(`https://api.countapi.xyz/hit/topaz-novels-test/${counterID}`);
-        const data = await res.json();
-        realChapterViews = data.value;
-        console.log("View counted:", realChapterViews);
-    } catch (e) {
-        console.log("Counter error", e);
-        // แก้ตรงนี้: ถ้า chapter.views ไม่มีใน JSON ให้ใช้ 0 แทน เพื่อกัน Error จอขาว
-        realChapterViews = chapter.views || 0; 
-    }
-    // ------------------------------------------
-
     const formattedContent = chapter.content
         .split('\n') // ตัดแบ่งข้อความเมื่อเจอ \n
         .filter(para => para.trim() !== '') // กรองบรรทัดเปล่าทิ้ง
         .map(para => `<p>${para}</p>`) // ห่อด้วย tag <p>
         .join('');
-        let html = `
+        
+    let html = `
         <div class="max-w-3xl mx-auto animate-fade-in">
             <div class="flex justify-between items-center mb-8 pb-4 border-b border-white/10">
                 <button onclick="loadNovelDetail('${novel.id}')" class="text-sm text-white/60 hover:text-white flex items-center gap-2">
@@ -240,7 +215,7 @@ async function loadReader(chapterIndex) {
             <div class="mb-12">
                 <h1 class="text-2xl md:text-3xl font-bold text-white mb-2 text-center">${chapter.title}</h1>
                 <div class="text-center text-xs text-white/40 font-mono mb-10">
-                    <i class="fa-solid fa-eye mr-2"></i> ${realChapterViews.toLocaleString()} Reads
+                    <i class="fa-solid fa-eye mr-2"></i> <span id="chapter-view-count">...</span> Reads
                 </div>
                 
                 <div class="reader-content text-lg text-white/90 font-light leading-loose">
@@ -271,6 +246,20 @@ async function loadReader(chapterIndex) {
 
     appContent.innerHTML = html;
     window.scrollTo(0, 0);
+
+    // Count view in background
+    const counterID = `topaz_novel_${novel.id}_chap_${chapter.chapter_number}`;
+    try {
+        const res = await fetch(`https://api.countapi.xyz/hit/topaz-novels-test/${counterID}`);
+        const data = await res.json();
+        const el = document.getElementById('chapter-view-count');
+        if (el) el.innerText = data.value.toLocaleString();
+        console.log("View counted:", data.value);
+    } catch (e) {
+        console.log("Counter error", e);
+        const el = document.getElementById('chapter-view-count');
+        if (el) el.innerText = (chapter.views || 0).toLocaleString();
+    }
 }
 
 // Start App
