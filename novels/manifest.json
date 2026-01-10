@@ -9,6 +9,18 @@
     "viewCount": 0,
     "lastUpdate": "2026-01-09",
     "isEnded": true
+  },
+  
+  {
+    "id": "002",
+    "title": "บทเรียนจากห้องแลป",
+    "author": "Topaz",
+    "cover": "images/002.jpg",
+    "status": "Completed",
+    "totalChapters": 10,
+    "viewCount": 0,
+    "lastUpdate": "2026-01-10",
+    "isEnded": true
   }
 
 ]
