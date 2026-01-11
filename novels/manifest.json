@@ -4,13 +4,13 @@
     "title": "คู่ปรับคู่ชะตา",
     "author": "Topaz",
     "cover": "images/001.jpg",
-    "status": "Ongoing",
+    "status": "Completed",
     "totalChapters": 15,
     "viewCount": 0,
     "lastUpdate": "2026-01-09",
     "isEnded": true
   },
-  
+
   {
     "id": "002",
     "title": "บทเรียนจากห้องแลป",
@@ -21,6 +21,18 @@
     "viewCount": 0,
     "lastUpdate": "2026-01-10",
     "isEnded": true
+  },
+  
+  {
+    "id": "003",
+    "title": "เกิดใหม่ทั้งทีก็เป็นบุษบาไปซะแล้ว",
+    "author": "Topaz",
+    "cover": "images/003.jpg",
+    "status": "Ongoing",
+    "totalChapters": 80,
+    "viewCount": 0,
+    "lastUpdate": "2026-01-11",
+    "isEnded": false
   }
 
 ]
